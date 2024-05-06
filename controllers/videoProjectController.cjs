@@ -18,14 +18,32 @@ exports.createVideoProject = async (req, res) => {
   }
 };
 
+const Redis = require('ioredis');
+const redisConfig = require('../config/redisConfig');
+
+const redisClient = new Redis(redisConfig);
+
+// Controller function to get all video projects with caching
 exports.getAllVideoProjects = async (req, res) => {
   try {
+    // Check if data exists in Redis cache
+    const cachedData = await redisClient.get('allVideoProjects');
+    if (cachedData) {
+      return res.status(200).json(JSON.parse(cachedData));
+    }
+
+    // If data is not cached, fetch it from the database
     const videoProjects = await VideoProject.find();
-    res.status(200).json(videoProjects);
+
+    // Cache the data in Redis for future requests
+    await redisClient.set('allVideoProjects', JSON.stringify(videoProjects));
+
+    return res.status(200).json(videoProjects);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 exports.getVideoProjectById = async (req, res) => {
   try {
